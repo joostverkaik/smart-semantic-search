@@ -1,0 +1,166 @@
+<html>
+<head>
+	<script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+	
+	<style type="text/css">
+		body {
+			font-family: "Open Sans", "Helvetica Neue", Helvetica, sans-serif;
+			
+			margin: 0 0;
+			padding: 0 0;
+		}
+		
+		#query {
+			width: 100%;
+			
+			background-color: #dedede;
+			border-right: 1px solid #bcbcbc;
+			
+			padding: 15px;
+			
+			box-sizing: border-box;
+		}
+		
+		#query #page-list {
+			width: 100%;
+		}
+		
+		#query #page-list .page {
+			display: block;
+			
+			width: 100%;
+			height: 60px;
+			
+			box-sizing: border-box;
+			
+			background-color: #f6f6f6;
+			
+			margin-top: 6px;
+			padding: 5px;
+			
+			list-style: none;
+			
+			position: relative;
+		}
+		
+		#query #page-list .page:hover {
+			background-color: #d7e9f4;
+			
+			cursor: pointer;
+		}
+		
+		#query #page-list .page img {
+			width: 50px;
+			height: 50px;
+		}
+		
+		#query #page-list .page strong {
+			position: absolute;
+			
+			top: 19px;
+			left: 70px;
+		}
+		
+		#main {
+			float: right;
+			
+			width: 70%;
+			
+			box-sizing: border-box;
+		}
+		
+		#main img {
+			height: 150px;
+		}
+		
+		#search {
+			font-family: inherit;
+			font-size: 16pt;
+			text-align: center;
+			
+			padding: 10px;
+			
+			border: 1px solid #ccc;
+			
+			width: 100%;
+		}
+	</style>
+</head>
+<body>
+	<div id="query">
+		<input type="text" id="search" placeholder="Enter a page (e.g. a city)" />
+		
+		<div id="page-list">
+			
+		</div>
+	</div>
+	
+	<div id="main">
+		
+	</div>
+
+	<script type="text/javascript">
+		$(document).ready(function() {
+			var searchTimer;
+			
+			$('#search').keyup(function() {
+				clearTimeout(searchTimer);
+				
+				searchTimer = setTimeout(search, 500);
+			});
+			
+			$('#page-list').on('click', '.page', function() {
+				loadPage($(this).attr('data-fb-id'));
+			});
+		});
+		
+		var search = function() {
+			$.getJSON('http://spotlight.sztaki.hu:2222/rest/annotate', { text: 'Show me museums in Amsterdam', confidence: 0.35 }, function(d) {
+				console.log(d);
+			})
+		}
+		
+		/*var photoIDs = [];
+		
+		var loadPage = function(id) {
+			$.getJSON('https://graph.facebook.com/'+ id +'/photos/tagged?limit=15&access_token=927270367301083|mhmr1l1pGDlUJTTl7Mu-6A4jQw0', function(data) {
+				
+				$('#main').empty();
+				photoIDs = [];
+				
+				data.data.forEach(function(photo) {
+					if($.inArray(photo.id, photoIDs) == -1) {
+						photoIDs.push(photo.id);
+						
+						$('#main').append($('<img />').attr('src', photo.source));
+					}
+				});
+				
+			});
+		}
+		
+		var search = function() {
+			$.getJSON('https://graph.facebook.com/search?access_token=927270367301083|mhmr1l1pGDlUJTTl7Mu-6A4jQw0&q='+ encodeURIComponent($("#search").val()) +'&limit=8&type=page', function(data) {
+				
+				if(data.data.length == 0) {
+					alert('No pages could be found.');
+				} else {
+					$('#page-list').empty();
+					$('#page-list').hide();
+					
+					data.data.forEach(function(page) {
+						var li = $('<a />').addClass('page').attr('data-fb-id', page.id);
+						
+						li.append($('<img />').attr('src', 'https://graph.facebook.com/'+ page.id +'/picture?type=large'));
+						li.append($('<strong />').text(page.name));
+						
+						$('#page-list').append(li);
+					});
+					
+					$('#page-list').slideDown(200);
+				}
+			});
+		}*/
+	</script>
+</body>
+</html>
