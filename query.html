@@ -25,7 +25,9 @@
 			width: 100%;
 		}
 		
-		#query #page-list .page {
+		#query #page-list .entity {
+			color: inherit;
+			
 			display: block;
 			
 			width: 100%;
@@ -43,22 +45,36 @@
 			position: relative;
 		}
 		
-		#query #page-list .page:hover {
+		#query #page-list .entity:hover {
 			background-color: #d7e9f4;
 			
 			cursor: pointer;
 		}
 		
-		#query #page-list .page img {
+		#query #page-list .entity img {
 			width: 50px;
 			height: 50px;
 		}
 		
-		#query #page-list .page strong {
+		#query #page-list .entity strong {
 			position: absolute;
 			
 			top: 19px;
 			left: 70px;
+		}
+		
+		#sparql {
+			width: 100%;
+			height: 200px;
+			
+			padding: 20px;
+			
+			font-size: 14pt;
+			font-family: "Courier New", Courier, sans-serif;
+			
+			border: 1px solid #ccc;
+			
+			margin-top: 10px;
 		}
 		
 		#main {
@@ -90,6 +106,10 @@
 	<div id="query">
 		<input type="text" id="search" placeholder="Enter a page (e.g. a city)" />
 		
+		<textarea id="sparql">
+			
+		</textarea>
+		
 		<div id="page-list">
 			
 		</div>
@@ -102,6 +122,7 @@
 	<script type="text/javascript">
 		$(document).ready(function() {
 			var searchTimer;
+			var sparqlTimer;
 			
 			$('#search').keyup(function() {
 				clearTimeout(searchTimer);
@@ -112,12 +133,108 @@
 			$('#page-list').on('click', '.page', function() {
 				loadPage($(this).attr('data-fb-id'));
 			});
+			
+			$('#sparql').keyup(function() {
+				clearTimeout(sparqlTimer);
+				
+				sparqlTimer = setTimeout(function() {
+					sparqlQuery($('#sparql').val());
+				}, 500);
+			});
 		});
 		
+		var entityMapping = {
+			'DBpedia:Country': 'dbo:country',
+			'DBpedia:City': 'dbo:location',
+			'DBpedia:Place': 'dbo:isPartOf'
+		}
+		
 		var search = function() {
-			$.getJSON('http://spotlight.sztaki.hu:2222/rest/annotate', { text: 'Show me museums in Amsterdam', confidence: 0.35 }, function(d) {
-				console.log(d);
+			$.getJSON('http://spotlight.sztaki.hu:2222/rest/annotate', { text: $('#search').val(), confidence: 0.25 }, function(data) {
+				
+				var location = { property: null, entity: null };
+				var subjects = [];
+				
+				data.Resources.forEach(function(entity) {
+					var types = entity['@types'].split(',');
+					
+					console.log(entity);
+					
+					var foundType = false;
+					
+					for(entityType in entityMapping) {
+						if(types.indexOf(entityType) > -1) {
+							location['property'] = entityMapping[entityType];
+							location['entity'] = entity['@URI'];
+							
+							foundType = true;
+							
+							break;
+						}
+					}
+					
+					if(!foundType) {
+						subjects.push(entity['@URI'].replace('resource', 'ontology'));
+					}
+				});
+				
+				var query = 'SELECT DISTINCT ?obj ?label ?thumbnail\n';
+				
+				query += 'WHERE {\n';
+				
+				if(subjects.length > 1) {
+					subjects = subjects.map(function(s) {
+						return '\t{ ?obj rdf:type <'+ s +'> . }'
+					});
+					
+					query += subjects.join('\n\t\tUNION\n') +'\n';
+				} else {
+					query += '\t?obj rdf:type <'+ subjects[0] +'> .\n';
+				}
+				
+				query += '\t?obj '+ location['property'] +' <'+ location['entity'] +'> .\n';
+				
+				query += '\t?obj rdfs:label ?label .\n';
+				query += "\tFILTER (lang(?label) = 'en') .\n";
+				
+				query += '\tOPTIONAL { ?obj dbo:thumbnail ?thumbnail }\n';
+				
+				query += '}';
+				
+				$('#sparql').val(query);
+				
+				sparqlQuery($('#sparql').val());
+				
 			})
+		}
+		
+		var sparqlQuery = function(q) {
+			console.log('test');
+			
+			$.getJSON('http://dbpedia.org/sparql', { query: q }, function(data) {
+				$('#page-list').empty();
+				$('#page-list').hide();
+				
+				data.results.bindings.forEach(function(result) {
+					
+					var li = $('<a />').addClass('entity').attr('target', '_blank').attr('href', result.obj.value);
+					// .attr('data-fb-id', entity.id);
+					
+					//li.append($('<img />').attr('src', 'https://graph.facebook.com/'+ page.id +'/picture?type=large'));
+					//li.append($('<strong />').text(result.obj.value));
+					
+					li.append($('<strong />').text(result.label.value));
+					
+					if('thumbnail' in result) {
+						// console.log(result.thumbnail);
+						li.append($('<img />').attr('src', result.thumbnail.value));
+					}
+					
+					$('#page-list').append(li);
+				});
+				
+				$('#page-list').slideDown(200);
+			});
 		}
 		
 		/*var photoIDs = [];
