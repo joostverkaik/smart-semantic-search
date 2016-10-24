@@ -1,0 +1,62 @@
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+
+<textarea id="query" style="width: 400px; height: 200px;" autofocus>SELECT ?city
+WHERE {
+  ?city nl:monthsToVisit 8 .
+  ?city nl:internet_speed_download ?speed .
+  ?city dbp:populationTotal ?population .
+  
+  FILTER(?speed > 20)
+  FILTER(?population > 500000)
+}</textarea>
+
+<button id="send-query">Query</button>
+
+<div id="results"></div>
+
+<script type="text/javascript">
+	var replaceByMap = function(value, map) {
+		return value.replace(new RegExp("(" + Object.keys(map).map(function(i){ return i.replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&"); }).join("|") + ")", "g"), function(s) { return map[s]; });
+	}
+	
+	var prefixes = { 'http://nomadlist.com/': 'nl:', 'http://dbpedia.org/resource': 'dbr:', 'http://dbpedia.org/ontology': 'dbo:', 'http://dbpedia.org/property': 'dbp:' };
+	
+	var query = function(q, cb, reasoning) {
+		if(!reasoning) reasoning = true;
+		
+		$.ajax({
+			headers: {
+				Accept: "application/sparql-results+json"
+			},
+			
+			url: 'http://localhost:5820/sw2016/query',
+			data: {
+				query: q,
+				
+				reasoning: reasoning.toString()
+			},
+			
+			success: function(data) {
+				cb(data.results.bindings);
+			}
+		});
+	}
+	
+	$(document).ready(function() {
+
+		$('#send-query').on('click', function() {
+			query($('#query').val(),  function(rs) {
+				
+				$('#results').empty();
+				
+				rs.forEach(function(r) {
+					var item = $('<div />').text(replaceByMap(r.city.value, prefixes));
+					
+					$('#results').append(item);
+				});
+				
+			});
+		});
+		
+	});
+</script>
