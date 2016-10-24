@@ -12,6 +12,7 @@ gen
 
 vendor
 composer.lock
+composer.phar
 
 *.log
 
