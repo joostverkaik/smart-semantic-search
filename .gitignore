@@ -10,6 +10,8 @@ gen
 
 .DS_Store
 
+vendor
+
 *.log
 
 StardogData/system.lock
