@@ -11,6 +11,7 @@ gen
 .DS_Store
 
 vendor
+composer.lock
 
 *.log
 
