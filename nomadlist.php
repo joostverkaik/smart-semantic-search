@@ -72,4 +72,3 @@ $data = $graph->serialise($format);
 
 header('Content-Type: text/turtle');
 echo $data;
-?>
