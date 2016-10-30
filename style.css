@@ -342,6 +342,12 @@ body {
 	margin-top: 10px;
 }
 
+#city-view .tag:hover {
+	background-color: #91b1c5;
+	
+	color: white;
+}
+
 .tag {
 	display: inline-block;
 	

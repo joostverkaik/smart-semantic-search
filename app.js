@@ -289,7 +289,7 @@ var app = new Vue({
 			var that = this;
 			
 			Vue.nextTick(function() {
-				that.loadQuery('cities-by-tags');
+				that.loadQuery('filtered-cities');
 				that.loadResults();
 				
 				that.back();
@@ -297,11 +297,12 @@ var app = new Vue({
 		},
 		
 		loadByMonth: function(month) {
-			this.selectedMonth = month;
+			this.currentFilter.months = [ month ];
 			
 			var that = this;
+			
 			Vue.nextTick(function() {
-				that.loadQuery('cities-by-month');
+				that.loadQuery('filtered-cities');
 				that.loadResults();
 				
 				that.back();
@@ -310,7 +311,7 @@ var app = new Vue({
 		
 		back: function(load) {
 			if(load) {
-				this.loadQuery('best-cities');
+				this.loadQuery('filtered-cities');
 			}
 			
 			this.currentCityLoaded = false;
