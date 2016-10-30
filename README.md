@@ -1,11 +1,11 @@
 # smart-semantic-search
-Welcome to group 16's Semantic Web Final Project for academic year 2016/2017.
-
-We developed an application for the modern day nomads that want to find a city to go to and work there.
-
-The users can set filters to find the perfect place and instantly see scores like LGBT friendliness, prices of coffee, beer, et cetera, and view accommodations and places to work.
-
+Welcome to group 16's Semantic Web Final Project for academic year 2016/2017.  
+We developed an application for the modern day nomads that want to find a city to go to and work there.  
+The users can set filters to find the perfect place and instantly see scores like LGBT friendliness, prices of coffee, beer, et cetera, and view accommodations and places to work.  
 Included is the source code, Stardog data and experimental files.
+
+The link to the Github repo: https://github.com/joostverkaik/smart-semantic-search/  
+A screencast can be found on Vimeo: https://vimeo.com/189549359
 
 
 Peter Konieczek	      pkk480  
