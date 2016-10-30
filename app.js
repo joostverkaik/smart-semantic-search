@@ -237,6 +237,8 @@ var app = new Vue({
 		},
 		
 		go: function(type) {
+			this.currentCities = [];
+			
 			this.loadQuery(type);
 			this.loadResults();
 		},
@@ -282,7 +284,7 @@ var app = new Vue({
 		loadByTag: function(tag) {
 			this.currentFilter.tags = [ tag ];
 			
-			if($.inArray('tag', this.availableTags) == -1) {
+			if($.inArray(tag, this.availableTags) == -1) {
 				this.availableTags.unshift(tag);
 			}
 			
