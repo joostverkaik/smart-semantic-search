@@ -1,6 +1,7 @@
 <?php
-ini_set('memory_limit', '500M');
+ini_set('memory_limit', '2048M');
 ini_set('max_execution_time', '600');
+
 require 'vendor/autoload.php';
 
 EasyRdf_Namespace::set('nl', 'http://nomadlist.com/');
@@ -10,7 +11,7 @@ EasyRdf_Namespace::set('dbo', 'http://dbpedia.org/ontology/');
 
 $graph = new EasyRdf_Graph();
 
-$accomodation = $graph->resource('nl:Accomodation', 'rdfs:Class');
+$accomodation = $graph->resource('nl:Accommodation', 'rdfs:Class');
 $city         = $graph->resource('nl:City', 'rdfs:Class');
 
 function addProperties($obj, $key, $sub)
@@ -39,26 +40,30 @@ function createObject(&$graph, $type, $name, $c, $city = null)
     $object = $graph->resource('nl:' . $name, $type);
     
     foreach ($c as $key => $obj) {
-        if (in_array($key, array('city', 'country')) && !empty($obj->name)) {
+	    if (in_array($key, array('city')) && !empty($obj->name)) {
             $typeMap = array('city' => 'nl:City', 'country' => 'nl:Country');
             
-            $sub = createObject($graph, $typeMap[$key], $obj->name, $obj);
+            $sub = createObject($graph, $typeMap[$key], $obj->name, new stdClass());
             
             $object->set('nl:' . $key, $sub);
         } else {
             
-            if ($key == 'city') {
-                $key = 'nomad';
+            if ($key != 'country' && $key != 'city') {
+	            if ($key == 'name') {
+		            $key = 'nomad_name';
+	            }
+	            
+	            addProperties($object, $key, $obj);
             }
-            
-            addProperties($object, $key, $obj);
             
         }
     }
     
     if ($city != null) {
-        $cityresource = $graph->resource('nl:'.$city);
+        $cityresource = $graph->resource('nl:'. $city);
+        
         $object->set('nl:locatedIn', $cityresource);
+        $object->set('nl:city', $cityresource);
     }
     //$dbrEquivalent = $graph->resource('dbr:'. $name);
     //$object->set('owl:sameAs', $dbrEquivalent);
@@ -67,10 +72,17 @@ function createObject(&$graph, $type, $name, $c, $city = null)
 }
 
 $files = glob('hotels/*.json');
-foreach ($files as $file) {
+
+foreach (array_slice($files, 150) as $file) {
+	$name = explode('.json', $file);
+	$name = explode('/', $name[0]);
+	$name = $name[1];
+	
+	echo $name ."\n";
+	
     $data = json_decode(file_get_contents($file));
     foreach ($data as $c) {
-        createObject($graph, 'nl:Accomodation', $c->name, $c, 'Amsterdam');
+        createObject($graph, 'nl:Accommodation', $c->name, $c, str_replace(' ', '_', $name));
     }
 }
 
@@ -78,5 +90,7 @@ $format = EasyRdf_Format::getFormat('turtle');
 
 $data = $graph->serialise($format);
 
-//header('Content-Type: text/turtle');
-file_put_contents('hotels.json', $data);
+//header('Content-Type: text/turtle; charset=utf-8');
+//echo $data;
+
+file_put_contents('ttls/all_accommodations-part2.ttl', $data);
