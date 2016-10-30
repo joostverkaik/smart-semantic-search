@@ -1,167 +1,337 @@
-var lang = 'nl';
-		
-$(document).ready(function() {
-	var searchTimer;
-	var sparqlTimer;
-	
-	$('#search').keyup(function() {
-		clearTimeout(searchTimer);
-		
-		searchTimer = setTimeout(search, 500);
-	});
-	
-	$('#page-list').on('click', '.page', function() {
-		loadPage($(this).attr('data-fb-id'));
-	});
-	
-	$('#sparql').keyup(function() {
-		clearTimeout(sparqlTimer);
-		
-		sparqlTimer = setTimeout(function() {
-			sparqlQuery($('#sparql').val());
-		}, 500);
-	});
-	
-	$('#lang').change(function() {
-		lang = $(this).val();
-		
-		search();
-	});
-});
-
-var entityMapping = {
-	'DBpedia:Country': 'dbo:country',
-	'DBpedia:City': 'dbo:location',
-	'DBpedia:Place': 'dbo:isPartOf'
+var replaceByMap = function(value, map) {
+	return value.replace(new RegExp("(" + Object.keys(map).map(function(i){ return i.replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&"); }).join("|") + ")", "g"), function(s) { return map[s]; });
 }
 
-var search = function() {
-	$.getJSON('http://spotlight.sztaki.hu:2222/rest/annotate', { text: $('#search').val(), confidence: 0.25 }, function(data) {
+String.prototype.capitalizeFirstLetter = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+}
+
+var app = new Vue({
+	el: '#app',
+	
+	data: {
+		currentQuery: '',
+		queryChangeTimer: null,
 		
-		var location = { property: null, entity: null };
-		var subjects = [];
+		currentCities: [],
 		
-		data.Resources.forEach(function(entity) {
-			var types = entity['@types'].split(',');
+		selectedCity: null,
+		currentCity: {
+			'sw:name': '',
 			
-			console.log(entity);
+			rawBindings: []	
+		},
+		
+		currentCityLoaded: false,
+		
+		currentPlaces: [],
+		placesType: 'nl:Accommodation',
+		
+		selectedTag: null,
+		selectedMonth: null,
+		
+		displayProperties: ['nl:weather_type', 'nl:weather_temperature_celsius', 'nl:weather_humidity_value', 'nl:weather_humidity_label', 'nl:cost_beer_in_cafe_USD', 'nl:cost_local_USD', 'nl:cost_coffee_in_cafe_USD', 'nl:cost_expat_USD', 'nl:cost_airbnb_vs_apartment_price_ratio', 'nl:cost_shortTerm_USD', 'nl:cost_nomad_USD', 'nl:cost_coworking_monthly_USD', 'nl:cost_airbnb_median_USD', 'nl:cost_non_alcoholic_drink_in_cafe_USD', 'nl:cost_longTerm_USD', 'nl:cost_hotel_USD ', 'nl:internet_speed_download'],
+		
+		displayScores: [
+			 'nl:scores_nomad_score', 'nl:scores_places_to_work', 'nl:scores_safety', 'nl:scores_nightlife', 'nl:scores_life_score', 'nl:scores_lgbt_friendly', 'nl:scores_leisure', 'nl:scores_friendly_to_foreigners', 'nl:scores_free_wifi_available', 'nl:scores_aircon', 'nl:scores_female_friendly'
+		],
+		
+		currentFilter: {
+			tags: [],
+			months: [],
+			temperatures: ['Hot', 'Medium', 'Cold'],
+			humidities: ['Humid', 'Comfortable', 'Dry'],
+			regions: ['Africa', 'Asia', 'Europe', 'Middle East', 'North America', 'Oceania', 'South America'],
+			costs: ['$', '$$', '$$$'],
+		},
+		
+		availableCosts: { '$': '?cost < 1500', '$$': '(?cost >= 1500 && ?cost < 4000)', '$$$': '?cost >= 4000' },
+		
+		availableRegions: { 'Africa': 'Africa', 'Asia': 'Asia', 'Europe': 'Europe', 'Middle East': 'Middle_East', 'North America': 'North_America', 'Oceania': 'Oceania', 'South America': 'South_America' },
+		
+		availableTags: ['spa', 'outdoors', 'legal weed', 'culture', 'places of worship', 'food', 'beach', 'nightlife', 'hiking', 'low tax', 'temples', 'surfing', 'golf', 'few mosquitos', 'street food', 'diving'],
+		
+		availableTemperatures: { 'Hot': '?temp >= 25', 'Medium': '(?temp >= 12 && ?temp < 25)', 'Cold': '?temp < 12' },
+		
+		availableHumidities: [ 'Humid', 'Comfortable', 'Dry' ],
+		
+		availableMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+		
+		otherFactors: { 'LGBT-friendly': '', 'Fast internet': '', 'Large population': '' },
+		
+		months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+		shortMonths: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+		
+		prefixes: {
+			'http://www.w3.org/1999/02/22-rdf-syntax-ns#': 'rdf:',
+			'http://www.w3.org/2000/01/rdf-schema#': 'rdfs:',
+			'http://www.w3.org/2003/01/geo/wgs84_pos#': 'geo:',
+			'http://www.w3.org/2002/07/owl#': 'owl:',
+			'http://nomadlist.com/': 'nl:',
+			'http://jessesar.nl/sw-project/': 'sw:',
+			'http://dbpedia.org/resource/': 'dbr:',
+			'http://dbpedia.org/ontology/': 'dbo:',
+			'http://dbpedia.org/property/': 'dbp:'
+		},
+		
+		currentCityTemplate: {
+			'sw:name': '',
 			
-			var foundType = false;
+			rawBindings: []	
+		},
+
+	},
+	
+	watch: {
+		currentQuery: function(newQuestion) {
+			if(!this.selectedCity) {
+				if(this.queryChangeTimer) clearTimeout(this.queryChangeTimer);
+				
+				this.queryChangeTimer = setTimeout(this.loadResults, 500);
+			}
+		},
+		
+		'currentFilter.regions': function(newFilter) {
+			var that = this;
 			
-			for(entityType in entityMapping) {
-				if(types.indexOf(entityType) > -1) {
-					location['property'] = entityMapping[entityType];
-					location['entity'] = entity['@URI'];
+			Vue.nextTick(function() {
+				that.go('filtered-cities');
+			});
+		},
+		
+		'currentFilter.costs': function(newFilter) {
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.go('filtered-cities');
+			});
+		},
+		
+		'currentFilter.tags': function(newFilter) {
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.go('filtered-cities');
+			});
+		},
+		
+		'currentFilter.months': function(newFilter) {
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.go('filtered-cities');
+			});
+		},
+		
+		'currentFilter.temperatures': function(newFilter) {
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.go('filtered-cities');
+			});
+		},
+		
+		'currentFilter.humidities': function(newFilter) {
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.go('filtered-cities');
+			});
+		}
+	},
+	
+	methods: {
+		formatNumber: function(nStr) {
+		    nStr += '';
+		    x = nStr.split(',');
+		    x1 = x[0];
+		    x2 = x.length > 1 ? ',' + x[1] : '';
+		    var rgx = /(\d+)(\d{3})/;
+		    while (rgx.test(x1)) {
+		        x1 = x1.replace(rgx, '$1' + '.' + '$2');
+		    }
+		    return x1 + x2;
+		},
+		
+		replaceSpaces: function(val) {
+			return val.replace(new RegExp(' ', 'g'), '_');
+		},
+		
+		toFilterID: function(cat, id) {
+			return cat +'-'+ this.replaceSpaces(id);
+		},
+		
+		prefixedURI: function(uri) {
+			return replaceByMap(uri, this.prefixes);
+		},
+		
+		readbleURI: function(uri) {
+			return uri.substring(3).replace(new RegExp('_', 'g'), ' ').capitalizeFirstLetter()
+		},
+		
+		scoreStyle: function(score) {
+			percentage = parseFloat(score) * 100;
+			
+			return 'width: '+ percentage +'%;';
+		},
+		
+		bindingsToObject: function(bindings) {
+			var obj = {};
+			
+			var that = this;
+			
+			bindings.forEach(function(b) {
+				var key = that.prefixedURI(b.p.value);
+				
+				if(key in obj) {
+					if(typeof obj[key] != 'object') {
+						obj[key] = [obj[key]];
+					}
 					
-					foundType = true;
-					
-					break;
+					if(b.o.type == 'uri') {
+						obj[key].push(that.prefixedURI(b.o.value));
+					} else {
+						obj[key].push(b.o.value);
+					}
+				} else {
+					if(b.o.type == 'uri') {
+						obj[key] = that.prefixedURI(b.o.value);
+					} else {
+						obj[key] = b.o.value;
+					}
 				}
-			}
-			
-			if(!foundType) {
-				subjects.push(entity['@URI'].replace('resource', 'ontology'));
-			}
-		});
-		
-		var query = 'SELECT DISTINCT ?obj ?label ?thumbnail\n';
-		
-		query += 'WHERE {\n';
-		
-		if(subjects.length > 1) {
-			subjects = subjects.map(function(s) {
-				return '\t{ ?obj rdf:type <'+ s +'> . }'
 			});
 			
-			query += subjects.join('\n\t\tUNION\n') +'\n';
-		} else {
-			query += '\t?obj rdf:type <'+ subjects[0] +'> .\n';
-		}
+			return obj;
+		},
 		
-		query += '\t?obj '+ location['property'] +' <'+ location['entity'] +'> .\n';
+		loadQuery: function(key) {
+			this.currentQuery = $('#query-placeholders').find('#'+ key).text()
+		},
 		
-		query += '\t?obj rdfs:label ?label .\n';
+		loadResults: function() {
+			this.executeQuery(this.showResults, true);
+		},
 		
-		query += "\tFILTER (lang(?label) = '"+ lang +"') .\n";
-		
-		query += '\tOPTIONAL { ?obj dbo:thumbnail ?thumbnail }\n';
-		
-		query += '}\n';
-		
-		query += 'ORDER BY ?label';
-		
-		$('#sparql').val(query);
-		
-		sparqlQuery($('#sparql').val());
-		
-	})
-}
-
-var sparqlQuery = function(q) {
-	$.getJSON('http://dbpedia.org/sparql', { query: q }, function(data) {
-		$('#page-list').empty();
-		$('#page-list').hide();
-		
-		data.results.bindings.forEach(function(result) {
-			
-			var li = $('<a />').addClass('entity').attr('target', '_blank').attr('href', result.obj.value);
-			// .attr('data-fb-id', entity.id);
-			
-			//li.append($('<img />').attr('src', 'https://graph.facebook.com/'+ page.id +'/picture?type=large'));
-			//li.append($('<strong />').text(result.obj.value));
-			
-			li.append($('<strong />').text(result.label.value));
-			
-			if('thumbnail' in result) {
-				// console.log(result.thumbnail);
-				li.append($('<img />').attr('src', result.thumbnail.value));
-			}
-			
-			$('#page-list').append(li);
-		});
-		
-		$('#page-list').slideDown(200);
-	});
-}
-
-/*var photoIDs = [];
-
-var loadPage = function(id) {
-	$.getJSON('https://graph.facebook.com/'+ id +'/photos/tagged?limit=15&access_token=927270367301083|mhmr1l1pGDlUJTTl7Mu-6A4jQw0', function(data) {
-		
-		$('#main').empty();
-		photoIDs = [];
-		
-		data.data.forEach(function(photo) {
-			if($.inArray(photo.id, photoIDs) == -1) {
-				photoIDs.push(photo.id);
+		executeQuery: function(cb, reasoning) {
+			$.ajax({
+				headers: {
+					Accept: "application/sparql-results+json"
+				},
 				
-				$('#main').append($('<img />').attr('src', photo.source));
-			}
-		});
-		
-	});
-}
-
-var search = function() {
-	$.getJSON('https://graph.facebook.com/search?access_token=927270367301083|mhmr1l1pGDlUJTTl7Mu-6A4jQw0&q='+ encodeURIComponent($("#search").val()) +'&limit=8&type=page', function(data) {
-		
-		if(data.data.length == 0) {
-			alert('No pages could be found.');
-		} else {
-			$('#page-list').empty();
-			$('#page-list').hide();
-			
-			data.data.forEach(function(page) {
-				var li = $('<a />').addClass('page').attr('data-fb-id', page.id);
+				url: 'http://localhost:5820/sw2016/query',
+				data: {
+					query: this.currentQuery,
+					
+					reasoning: reasoning.toString()
+				},
 				
-				li.append($('<img />').attr('src', 'https://graph.facebook.com/'+ page.id +'/picture?type=large'));
-				li.append($('<strong />').text(page.name));
-				
-				$('#page-list').append(li);
+				success: function(data) {
+					cb(data);
+				}
 			});
+		},
+		
+		showResults: function(data) {
+			this.currentCities = data.results.bindings;
+		},
+		
+		go: function(type) {
+			this.loadQuery(type);
+			this.loadResults();
+		},
+		
+		entityPicture: function(url) {
+			return 'background-image: url('+ url +'); background-repeat: no-repeat; background-size: cover; background-position: center center;';
+		},
+		
+		loadCity: function(city, name, countryName) {
+			this.selectedCity = this.prefixedURI(city);
+			this.currentCity = { 'sw:name': name, 'sw:countryName': countryName };
 			
-			$('#page-list').slideDown(200);
-		}
-	});
-}*/
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.loadQuery('current-city');
+				
+				that.executeQuery(function(d) {
+					that.currentCity = that.bindingsToObject(d.results.bindings);
+					that.currentCity.rawBindings = d.results.bindings;
+					
+					that.currentQuery = 'SELECT ?name WHERE { '+ that.currentCity['nl:country'] +' rdfs:label ?name . FILTER(LANG(?name) = "en") }';
+					that.executeQuery(function(d) {
+						that.currentCity['sw:countryName'] = d.results.bindings[0].name.value;
+						
+						that.currentCityLoaded = true;
+						
+						that.loadPlaces();
+					}, true);
+				}, true);
+			});
+		},
+		
+		loadPlaces: function() {
+			this.loadQuery('places');
+			
+			var that = this;
+			this.executeQuery(function(data) {
+				that.currentPlaces = data.results.bindings;
+			}, true);
+		},
+		
+		loadByTag: function(tag) {
+			this.currentFilter.tags = [ tag ];
+			
+			if($.inArray('tag', this.availableTags) == -1) {
+				this.availableTags.unshift(tag);
+			}
+			
+			var that = this;
+			
+			Vue.nextTick(function() {
+				that.loadQuery('cities-by-tags');
+				that.loadResults();
+				
+				that.back();
+			});
+		},
+		
+		loadByMonth: function(month) {
+			this.selectedMonth = month;
+			
+			var that = this;
+			Vue.nextTick(function() {
+				that.loadQuery('cities-by-month');
+				that.loadResults();
+				
+				that.back();
+			});
+		},
+		
+		back: function(load) {
+			if(load) {
+				this.loadQuery('best-cities');
+			}
+			
+			this.currentCityLoaded = false;
+			this.selectedCity = null;
+			this.currentCity = Vue.util.extend({}, this.currentCityTemplate);
+			this.currentPlaces = [];
+		},
+		
+		switchPlaces: function(type) {
+			if(type == 'accommodations') {
+				this.placesType = 'nl:Accommodation';
+			} else {
+				this.placesType = 'nl:Workplace';
+			}
+			
+			var that = this;
+			Vue.nextTick(function() {
+				that.loadPlaces();
+			});
+		},
+	}
+})
+
+app.go('filtered-cities');

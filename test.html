@@ -19,7 +19,7 @@ WHERE {
 		return value.replace(new RegExp("(" + Object.keys(map).map(function(i){ return i.replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&"); }).join("|") + ")", "g"), function(s) { return map[s]; });
 	}
 	
-	var prefixes = { 'http://nomadlist.com/': 'nl:', 'http://dbpedia.org/resource': 'dbr:', 'http://dbpedia.org/ontology': 'dbo:', 'http://dbpedia.org/property': 'dbp:' };
+	var prefixes = { 'http://nomadlist.com/': 'nl:', 'http://dbpedia.org/resource/': 'dbr:', 'http://dbpedia.org/ontology/': 'dbo:', 'http://dbpedia.org/property/': 'dbp:' };
 	
 	var query = function(q, cb, reasoning) {
 		if(!reasoning) reasoning = true;
@@ -50,7 +50,7 @@ WHERE {
 				$('#results').empty();
 				
 				rs.forEach(function(r) {
-					var item = $('<div />').text(replaceByMap(r.city.value, prefixes));
+					var item = $('<div />').text(replaceByMap(r.workplace.value, prefixes));
 					
 					$('#results').append(item);
 				});

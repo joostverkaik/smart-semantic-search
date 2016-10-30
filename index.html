@@ -4,37 +4,337 @@
 	
 	<link rel="stylesheet" type="text/css" href="style.css" />
 	
-	<script type="text/javascript" src="app.js"></script>
+	<script type="text/javascript" src="https://unpkg.com/vue@2.0.3/dist/vue.js"></script>
 </head>
 <body>
-	<div id="query">
-		<input type="text" id="search" placeholder="E.g. Museums in Amsterdam" />
+	<div id="app">
+		<div id="query-placeholders">
+			
+<div id="best-cities">SELECT DISTINCT ?city ?name ?picture ?country ?countryName
+WHERE {
+	?city rdf:type nl:City .
+	?city rdfs:label ?name .
+	?city sw:picture ?picture .
+	
+	?city nl:country ?country .
+	?country rdfs:label ?countryName .
+	
+	?city nl:scores_nomad_score ?score .
+	
+	FILTER(LANG(?name) = 'en') .
+	FILTER(LANG(?countryName) = 'en') .
+	FILTER(?score > 0.8)
+}
+ORDER BY ?name</div>
+
+<div id="filtered-cities">SELECT DISTINCT ?city ?name ?picture ?country ?countryName
+WHERE {
+	?city rdf:type nl:City .
+	<template v-if="currentFilter.regions.length == 1">
+	?city nl:region dbr:{{ availableRegions[currentFilter.regions[0]] }} .
+	</template><template v-if="currentFilter.regions.length > 1">
+	?city nl:region ?region .
+	FILTER({{ currentFilter.regions.map(function(r) { return '?region = dbr:'+ availableRegions[r]; }).join(' || ') }}) .
+	</template><template v-if="currentFilter.tags.length">
+	?city nl:tags "{{ currentFilter.tags.join('", "') }}" .
+	</template><template v-if="currentFilter.months.length">
+	?city nl:monthsToVisit {{ currentFilter.months.join(', ') }} .
+	</template></template><template v-if="currentFilter.temperatures.length">
+	?city nl:weather_temperature_celsius ?temp .
+	FILTER({{ currentFilter.temperatures.map(function(w) { return availableTemperatures[w]; }).join(' || ') }}) .
+	</template><template v-if="currentFilter.humidities.length == 1">
+	?city nl:weather_humidity_label "{{ currentFilter.humidities[0] }}" .
+	</template><template v-if="currentFilter.humidities.length > 1">
+	?city nl:weather_humidity_label ?humidity .
+	FILTER({{ currentFilter.humidities.map(function(h) { return '?humidity = "'+ h +'"'; }).join(' || ') }}) .
+	</template><template v-if="currentFilter.costs.length">
+	?city nl:cost_nomad_USD ?cost .
+	FILTER({{ currentFilter.costs.map(function(c) { return availableCosts[c]; }).join(' || ') }}) .
+	</template>
+	?city rdfs:label ?name .
+	?city sw:picture ?picture .
+	
+	?city nl:country ?country .
+	?country rdfs:label ?countryName .
+	
+	FILTER(LANG(?name) = 'en') .
+	FILTER(LANG(?countryName) = 'en') .
+}
+ORDER BY ?name</div>
+
+<div id="current-city">SELECT ?p ?o
+WHERE {
+	{{ selectedCity }} ?p ?o
+}</div>
+
+<div id="cities-by-tag">SELECT ?city ?name ?picture ?country ?countryName
+WHERE {
+	?city rdf:type nl:City .
+	?city nl:tags "{{ selectedTag }}" .
+	
+	?city rdfs:label ?name .
+	?city sw:picture ?picture .
+	
+	?city nl:country ?country .
+	?country rdfs:label ?countryName .
+	
+	FILTER(LANG(?name) = 'en') .
+	FILTER(LANG(?countryName) = 'en') .
+}
+ORDER BY ?name</div>
+
+<div id="cities-by-month">SELECT ?city ?name ?picture ?country ?countryName
+WHERE {
+	?city rdf:type nl:City .
+	?city nl:monthsToVisit {{ selectedMonth }} .
+	
+	?city rdfs:label ?name .
+	?city sw:picture ?picture .
+	
+	?city nl:country ?country .
+	?country rdfs:label ?countryName .
+	
+	?city nl:scores_nomad_score ?score .
+	
+	FILTER(LANG(?name) = 'en') .
+	FILTER(LANG(?countryName) = 'en') .
+}
+ORDER BY ?name</div>
+
+<div id="places">SELECT DISTINCT ?place ?name ?picture ?price
+WHERE {
+	?place nl:city {{ selectedCity }} .
+	?place rdf:type {{ placesType }} .
+  	?place nl:nomad_name ?name .
+  	?place sw:picture ?picture .
+  	?place sw:pricePerNight ?price .
+  	?place nl:distance_from_center_in_km ?distance
+}
+ORDER BY ?distance</div>
+				
+		</div>
 		
-		<div id="page-list-container">
-			<div id="page-list">
+		<div id="query" v-show="!selectedCity">
+		
+			<div id="filters">
+				<div id="month">
+					<h3>when do you want to go?</h3>
+					<div id="month-filters">
+						
+						<template v-for="month in availableMonths">
+							<label v-bind:for="toFilterID('month', month.toString())" class="tag">
+								<input type="checkbox" v-bind:id="toFilterID('month', month.toString())" v-model="currentFilter.months" v-bind:value="month" /> <span>{{ shortMonths[month - 1] }}.</span>
+							</label>
+						</template>
+						
+					</div>
+				</div>
+				
+				<div id="region">
+					<h3>when do you want to go?</h3>
+					<div id="region-filters">
+						
+						<template v-for="region in Object.keys(availableRegions)">
+							<label v-bind:for="toFilterID('region', region)" class="tag">
+								<input type="checkbox" v-bind:id="toFilterID('region', region)" v-model="currentFilter.regions" v-bind:value="region" /> <span>{{ region }}</span>
+							</label>
+						</template>
+						
+					</div>
+				</div>
+				
+				<div class="clear"></div>
+				
+				<h3>what are you looking for?</h3>
+				<div id="tag-filters">
+					
+					<template v-for="tag in availableTags">
+						<label v-bind:for="toFilterID('tag', tag)" class="tag">
+							<input type="checkbox" v-bind:id="toFilterID('tag', tag)" v-model="currentFilter.tags" v-bind:value="tag" /> <span>{{ tag }}</span>
+						</label>
+					</template>
+					
+				</div>
+				
+				<div id="temperature">
+					<h3>what temperature is good for you?</h3>
+					<div id="temperature-filters">
+					
+						<template v-for="temperature in Object.keys(availableTemperatures)">
+							<label v-bind:for="toFilterID('temperature', temperature)" class="tag">
+								<input type="checkbox" v-bind:id="toFilterID('temperature', temperature)" v-model="currentFilter.temperatures" v-bind:value="temperature" /> <span>{{ temperature }}</span>
+							</label>
+						</template>
+					
+					</div>
+				</div>
+				
+				<div id="humidity">
+					<h3>what humidity do you like?</h3>
+					<div id="humidity-filters">
+					
+						<template v-for="humidity in availableHumidities">
+							<label v-bind:for="toFilterID('humidity', humidity)" class="tag">
+								<input type="checkbox" v-bind:id="toFilterID('humidity', humidity)" v-model="currentFilter.humidities" v-bind:value="humidity" /> <span>{{ humidity }}</span>
+							</label>
+						</template>
+					
+					</div>
+				</div>
+					
+				<div id="cost">
+					<h3>how expensive?</h3>
+					<div id="costs-filters">
+					
+						<template v-for="costs in Object.keys(availableCosts)">
+							<label v-bind:for="toFilterID('costs', costs)" class="tag">
+								<input type="checkbox" v-bind:id="toFilterID('costs', costs)" v-model="currentFilter.costs" v-bind:value="costs" /> <span>{{ costs }}</span>
+							</label>
+						</template>
+					
+					</div>
+				</div>
+			</div>
+			
+			<div id="sparql-container">
+				<textarea id="sparql" v-model="currentQuery"></textarea>
+			</div>
+			
+			<!-- <input type="text" id="search" placeholder="E.g. Museums in Amsterdam" /> -->
+			
+			<div id="page-list-container">
+				<div id="page-list">
+					
+					<template v-for="r in currentCities">
+						
+						<div class="entity-box">
+						
+							<!-- v-bind:href="r.city.value"  -->
+							<a class="entity" v-on:click="loadCity(r.city.value, r.name.value, r.countryName.value)">
+								<strong>{{ r.name.value }}</strong>
+								
+								<small>{{ r.countryName.value }}</small>
+								
+								<img v-bind:style="entityPicture(r.picture.value)" />
+							</a>
+
+						</div>
+						
+					</template>
+					
+				</div>
+			</div>
+			
+			<div class="clear"></div>
+		</div>
+		
+		<div id="city-view" v-show="selectedCity">
+			<div class="top-heading">
+				<a v-on:click="back(true)">&laquo; back</a>
+				
+				<strong>{{ currentCity['sw:name'] }}</strong>
+			</div>
+			
+			<div class="loading" v-if="!currentCityLoaded">Loading...</div>
+			
+			<div class="content" v-if="currentCityLoaded">
+				
+				<div id="city-info">
+					<div id="city-info-container">
+						<div class="heading" v-bind:style="entityPicture(currentCity['sw:picture'])">
+							<div class="overlay"></div>
+							
+							<div class="title">
+								{{ currentCity['sw:name'] }}
+								
+								<small>{{ currentCity['sw:countryName'] }}</small>
+								
+								<small class="population" v-if="'sw:population' in currentCity">{{ formatNumber(currentCity['sw:population']) }} other people live here</small>
+							</div>
+						</div>
+						
+						<div class="tag" v-for="tag in currentCity['nl:tags']" v-on:click="loadByTag(tag)">
+							{{ tag }}
+						</div>
+						
+						<h3>when to visit</h3>
+						<div class="tag" v-for="month in currentCity['nl:monthsToVisit']" v-on:click="loadByMonth(month)">
+							{{ months[month - 1] }}
+						</div>
+						
+						<h3>scores</h3>
+						<div v-for="property in displayScores">
+							<div class="score-name">
+								{{ readbleURI(property).substring(7).capitalizeFirstLetter() }}
+							</div>
+							<div class="score">
+								<div class="score-value" v-bind:style="scoreStyle(currentCity[property])">{{ currentCity[property] * 100 }}%</div>
+							</div>
+						</div>
+						
+						<h3>information</h3>
+						<div v-for="property in displayProperties" class="property-container">
+							<div class="property-name">
+								{{ readbleURI(property) }}
+							</div>
+							<div class="property">
+								<template v-if="property.indexOf('USD') > -1">$</template>{{ currentCity[property] }}<template v-if="property.indexOf('speed') > -1"> MB/s</template><template v-if="property.indexOf('temperature') > -1"> degrees Celsius</template>
+							</div>
+							
+							<div class="clear"></div>
+						</div>
+						
+						<div class="clear"></div>
+					</div>
+					
+					<div class="clear"></div>
+				</div>
+				
+				<div id="city-places">
+					<div class="tabs">
+						<div v-bind:class="{ active: (placesType == 'nl:Accommodation') }" v-on:click="switchPlaces('accommodations')">Accommodations</div>
+						<div v-bind:class="{ active: (placesType == 'nl:Workplace') }" v-on:click="switchPlaces('workplaces')">Places to work</div>
+					</div>
+					
+					<div id="city-places-container">
+						<div id="accommodations">
+							
+							<div class="place" v-for="r in currentPlaces">
+								<div class="place-container">
+									<div class="picture" v-bind:style="entityPicture(r.picture.value)"></div>
+									
+									<div class="title">{{ r.name.value }}</div>
+									<div class="price">${{ r.price.value }}</div>
+								</div>
+							</div>
+							
+						</div>
+					</div>
+				</div>
+				
+				<!--<template>
+					<li v-for="binding in currentCity.rawBindings">
+						{{ prefixedURI(binding.p.value) }}
+						
+						&nbsp;&mdash;&nbsp;
+						
+						<span v-if="binding.o.type == 'uri'">{{ prefixedURI(binding.o.value) }}</span>
+						<span v-else>{{ binding.o.value }}</span>
+					</li>
+				</template>-->
+			
+				<div class="clear"></div>
 				
 			</div>
+			
+			<div class="clear"></div>
+			
 		</div>
-		
-		<div id="sparql-container">
-			<textarea id="sparql">
-				
-			</textarea>
-		</div>
-		
+			
 		<div class="clear"></div>
+	
 	</div>
 	
-	<div id="main">
-		
-	</div>
-	
-	<div id="options">
-		Show results in: 
-		<select name="lang" id="lang">
-			<option value="nl" selected="true">Dutch</option>
-			<option value="en">English</option>
-		</select>
-	</div>
+	<script type="text/javascript" src="app.js"></script>
 </body>
 </html>

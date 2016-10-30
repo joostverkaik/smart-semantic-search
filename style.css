@@ -13,8 +13,13 @@ body {
 	padding: 0 0;
 }
 
+#query-placeholders {
+	display: none;
+}
+
 #query {
 	width: 100%;
+	height: 100%;
 	
 	background-color: #dedede;
 	border-right: 1px solid #bcbcbc;
@@ -25,7 +30,7 @@ body {
 }
 
 #query #page-list-container {
-	width: 50%;
+	width: 100%;
 	
 	padding-right: 10px;
 	
@@ -38,61 +43,115 @@ body {
 	overflow: auto;
 	
 	width: 100%;
-	height: 230px;
 	
 	border: 1px solid #ccc;
 }
 
-#query #page-list .entity {
+.entity-box {
+	width: 25%;
+	height: 70px;
+	
+	padding: 5px;
+	
+	display: inline-block;
+}
+
+.entity {
 	color: inherit;
+	
+	padding: 5px;
 	
 	display: block;
 	
 	width: 100%;
-	height: 60px;
+	height: 100%;
 	
 	box-sizing: border-box;
 	
 	background-color: #f6f6f6;
 	
-	margin-bottom: 6px;
-	padding: 5px;
-	
 	list-style: none;
 	
 	position: relative;
+	
+	text-decoration: none;
 }
 
-#query #page-list .entity:hover {
+.entity:hover {
 	background-color: #d7e9f4;
 	
 	cursor: pointer;
 }
 
-#query #page-list .entity img {
+.entity img {
 	width: 50px;
 	height: 50px;
 }
 
-#query #page-list .entity strong {
+.entity strong {
 	position: absolute;
 	
 	top: 19px;
 	left: 70px;
 }
 
+.entity small {
+	position: absolute;
+	
+	color: #959595;
+	
+	right: 18px;
+	top: 21px;
+}
+
+#filters {
+	width: 60%;
+	
+	background-color: white;
+	height: 310px;
+	
+	float: left;
+	
+	padding: 20px;
+	padding-top: 0px;
+}
+
+#month, #region {
+	width: 50%;
+	
+	float: left;
+}
+
+#temperature, #humidity {
+	width: 38%;
+	
+	float: left;
+}
+
+#cost {
+	width: 24%;
+	
+	float: left;
+}
+
+#month, #temperature, #humidity {
+	padding-right: 5px;
+}
+
+#region, #humidity, #cost {
+	padding-left: 5px;
+}
+
 #sparql-container {
 	float: right;
 	
-	width: 50%;
+	width: 40%;
 	padding-left: 10px;
-	
-	margin-top: 10px;
 }
 
 #sparql {
 	width: 100%;
-	height: 230px;
+	height: 310px;
 	
 	padding: 20px;
 	
@@ -102,16 +161,326 @@ body {
 	border: 1px solid #ccc;
 }
 
-#main {
-	float: right;
+.score-name {
+	float: left;
+	font-size: 10pt;
 	
-	width: 70%;
+	color: #575757;
 	
-	box-sizing: border-box;
+	width: 38%;
 }
 
-#main img {
-	height: 150px;
+.property-name {
+	float: left;
+	font-size: 10pt;
+	
+	color: #575757;
+	
+	width: 60%;
+}
+
+.score {
+	height: 25px;
+	width: 60%;
+	
+	float: left;
+	
+	margin-bottom: 8px;
+	
+	background-color: #ccc;
+}
+
+.property {
+	height: 25px;
+	width: 40%;
+	
+	font-size: 10pt;
+	
+	float: left;
+	
+	margin-bottom: 8px;
+}
+
+.score-value {
+	background-color: #61b0dd;
+	height: 24px;
+	
+	color: white;
+	text-align: center;
+	
+	font-size: 10pt;
+	padding: 2px;
+}
+
+.property-container {
+	width: 100%;
+	height: 25px;
+}
+
+#city-view {
+	background-color: #e1e1e1;
+	
+	min-height: 100%;
+}
+
+#city-view .top-heading {
+	width: 100%;
+	height: 60px;
+	
+	background-color: white;
+	
+	padding-left: 20px;
+	padding-right: 20px;
+	padding-top: 18px;
+}
+
+#city-view .top-heading a {
+	position: absolute;
+	
+	left: 20px;
+	
+	cursor: pointer;
+}
+
+#city-view .top-heading strong {
+	text-align: center;
+	
+	width: 100%;
+	display: block;
+}
+
+#city-view .content {
+	padding: 20px;
+}
+
+#city-view .loading {
+	font-size: 15pt;
+	
+	text-align: center;
+	
+	margin-top: 40px;
+}
+
+#city-view #city-info {
+	width: 40%;
+	height: 85%;
+	
+	float: left;
+	
+	position: relative;
+	
+	padding-right: 20px;
+}
+
+#city-view #city-info-container {
+	background-color: white;
+	height: 100%;
+	
+	overflow: auto;
+	
+	padding: 20px;
+	
+	padding-top: 220px;
+	
+	position: relative;
+}
+
+#city-view #city-info .heading {
+	width: 100%;
+	height: 200px;
+	
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+
+#city-view #city-info .heading .overlay {
+	width: 100%;
+	height: 100%;
+	
+	background-color: black;
+	opacity: 0.3;
+	
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	
+	z-index: 1;
+}
+
+#city-view #city-info .heading .title {
+	text-align: center;
+	
+	font-size: 28pt;
+	font-weight: bold;
+	
+	text-shadow: 0px 1px 1px black;
+	
+	color: white;
+	
+	padding-top: 45px;
+	
+	width: 100%;
+	
+	position: absolute;
+	z-index: 10;
+}
+
+#city-view #city-info .heading small {
+	display: block;
+	
+	font-size: 18pt;
+	font-weight: normal;
+	
+	margin-top: 0px;
+}
+
+#city-view #city-info .heading .population {
+	font-size: 11pt;
+	color:#e4e4e4;
+	
+	margin-top: 10px;
+}
+
+.tag {
+	display: inline-block;
+	
+	font-size: 10pt;
+	font-weight: bold;
+	
+	padding: 5px;
+	padding-left: 8px;
+	padding-right: 8px;
+	
+	background-color: #d7e9f4;
+	
+	margin-right: 5px;
+	margin-bottom: 5px;
+	
+	color: #606060;
+	
+	border-radius: 3px;
+	
+	cursor: pointer;
+}
+
+.tag span {
+	font-weight: normal;
+}
+
+.tag input:checked + span {
+	font-weight: bold;
+}
+
+h3 {
+	font-size: 12pt;
+	font-weight: 600;
+	
+	margin-bottom: 4px;
+	
+	color: #7a7a7a;
+}
+
+#city-view #city-places {
+	width: 60%;
+	height: 85%;
+	
+	float: right;
+	
+	position: relative;
+	
+	overflow: auto;
+}
+
+#city-view .place {
+	height: 210px;
+	width: 50%;
+	
+	display: inline-block;
+	
+	padding: 10px;
+	
+	position: relative;
+}
+
+#city-view .place-container {
+	background-color: white;
+	border-radius: 5px;
+	
+	height: 100%;
+	width: 100%;
+}
+
+#city-view .place .title {
+	font-size: 12pt;
+	font-weight: 600;
+	
+	padding-top: 14px;
+	padding-left: 12px;
+	padding-right: 50px;
+	
+	width: 100%;
+	
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#city-view .place .price {
+	position: absolute;
+	bottom: 25px;
+	right: 10px;
+	
+	font-size: 11pt;
+	
+	margin-right: 10px;
+}
+
+#city-view .place .picture {
+	width: 100%;
+	height: 140px;
+	
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+}
+
+.tabs {
+	width: 100%;
+	
+	margin-bottom: 5px;
+	
+	padding-left: 10px;
+	padding-right: 10px;
+	
+	display: block;
+}
+
+.tabs div {
+	display: inline-block;
+	
+	background-color: white;
+	
+	text-align: center;
+	
+	border: 1px solid #b1b1b1;
+	border-radius: 5px;
+	
+	padding: 10px;
+	padding-left: 14px;
+	padding-right: 14px;
+	
+	margin-right: 7px;
+	
+	font-size: 11pt;
+	
+	cursor: pointer;
+}
+
+.tabs div.active {
+	color: white;
+	background-color: #5d8eab;
+	
+	border: 1px solid #808080;
 }
 
 #search {

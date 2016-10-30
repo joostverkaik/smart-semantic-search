@@ -19,6 +19,10 @@ function addProperties($obj, $key, $sub) {
 		}
 	} else {
 		if(!is_array($sub)) {
+			if(strpos($sub, '.jpg') > -1) {
+				$sub = 'https://nomadlist.com'. $sub;
+			}
+			
 			$obj->set('nl:'. $key, $sub);
 		} else {
 			foreach($sub as $subV) {
@@ -33,8 +37,10 @@ function createObject(&$graph, $type, $name, $c) {
 	
 	$object = $graph->resource('nl:'. $name, $type);
 	
-	if(isset($c->info)) {
-		foreach($c->info as $key => $obj) {
+	//if(isset($c->info)) {
+	foreach(array('info', 'scores', 'media', 'cost') as $cat) {
+		
+		foreach($c->{$cat} as $key => $obj) {
 			if(in_array($key, array('country', 'region'))) {
 				$typeMap = array('city' => 'nl:City', 'country' => 'nl:Country', 'region' => 'nl:Region');
 				
@@ -42,6 +48,14 @@ function createObject(&$graph, $type, $name, $c) {
 				
 				$object->set('nl:'. $key, $sub);
 			} else {
+				
+				if($cat == 'scores') {
+					$key = 'scores_'. $key;
+				}
+				
+				if($cat == 'cost') {
+					$key = 'cost_'. $key;
+				}
 				
 				if($key == 'city') {
 					$key = 'nomad';	
@@ -51,7 +65,12 @@ function createObject(&$graph, $type, $name, $c) {
 				
 			}
 		}
+		
 	}
+	
+	addProperties($object, 'tags', $c->tags);
+	
+	//}
 	
 	$dbrEquivalent = $graph->resource('dbr:'. $name);
 	$object->set('owl:sameAs', $dbrEquivalent);
